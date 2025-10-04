@@ -1,80 +1,158 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Extract Player Names from Logs</title>
-<style>
-  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; background:#0b1020; color:#e8ecf1; }
-  h1 { font-size: 1.1rem; margin: 0 0 10px; color:#cfe3ff; }
-  .wrap { display:grid; gap:12px; max-width: 900px; }
-  textarea, pre { width:100%; min-height: 260px; padding:12px; border-radius:12px; border:1px solid #2a3657; background:#0f1730; color:#e8ecf1; }
-  pre { min-height: 180px; white-space: pre-wrap; }
-  .row { display:flex; gap:8px; flex-wrap: wrap; }
-  button { padding:10px 14px; border-radius:10px; border:1px solid #2a3657; background:#1a2750; color:#e8ecf1; cursor:pointer; }
-  button:hover { background:#213062; }
-  .muted { color:#a9b6d6; font-size:.9rem; }
-</style>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; connect-src 'none'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+  <!-- best-effort client hints to avoid caching -->
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="referrer" content="no-referrer">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Log → Player Name Extractor</title>
+  <style>
+    :root { --bg:#0b1020; --card:#0f1730; --text:#e8ecf1; --muted:#a9b6d6; --border:#2a3657; --accent:#1a2750; --accent2:#213062; }
+    html, body { height:100%; }
+    body { margin:24px; background:var(--bg); color:var(--text); font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    h1 { font-size:1.1rem; margin:0 0 10px; color:#cfe3ff; }
+    .wrap { display:grid; gap:12px; max-width:980px; margin:0 auto; }
+    textarea, pre { width:100%; min-height:260px; padding:12px; border-radius:12px; border:1px solid var(--border); background:var(--card); color:var(--text); }
+    textarea { resize:vertical; }
+    pre { min-height:180px; white-space:pre-wrap; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    button { padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:var(--accent); color:var(--text); cursor:pointer; }
+    button:hover { background:var(--accent2); }
+    .muted { color:var(--muted); font-size:.9rem; }
+    .opts { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+    label { user-select:none; }
+    .footer { font-size:.85rem; color:var(--muted); margin-top:4px; }
+    code { background:#0b1430; padding:0 6px; border-radius:6px; border:1px solid var(--border); }
+  </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Paste logs below → click “Extract”</h1>
-    <textarea id="in" placeholder="Paste your log lines here..."></textarea>
-    <div class="row">
-      <button id="extract">Extract</button>
-      <button id="copy">Copy Output</button>
-      <span id="count" class="muted"></span>
+
+    <textarea id="in"
+      placeholder="Paste your log lines here..."
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      aria-label="Log input area"
+    ></textarea>
+
+    <div class="opts">
+      <label><input type="checkbox" id="unique" checked> Unique names</label>
+      <label><input type="checkbox" id="sort"> Sort A→Z</label>
     </div>
-    <pre id="out" placeholder="Names will appear here..."></pre>
-    <div class="muted">Looks for <code>name='...'</code> or <code>name="..."</code> in each line. Handles Unicode and emoji.</div>
+
+    <div class="row">
+      <button id="extract" type="button">Extract</button>
+      <button id="copy" type="button">Copy Output</button>
+      <button id="clear" type="button">Clear</button>
+      <span id="count" class="muted" aria-live="polite"></span>
+    </div>
+
+    <pre id="out" aria-label="Extraction output (one name per line)"></pre>
+
+    <div class="footer">
+      Privacy: All processing is local in your browser tab. Nothing is uploaded or stored. Closing/reloading clears inputs.
+    </div>
   </div>
 
-<script>
-(function () {
-  const input = document.getElementById('in');
-  const out = document.getElementById('out');
-  const count = document.getElementById('count');
-  const rx = /name=(['"])(.*?)\1/gu; // capture content between ' or ", Unicode-safe
-
-  function extract() {
-    const text = input.value || "";
-    const names = [];
-    // Scan each line; if multiple name= occur, capture all
-    for (const line of text.split(/\r?\n/)) {
-      if (!line.trim()) continue;
-      let m;
-      rx.lastIndex = 0;
-      while ((m = rx.exec(line)) !== null) {
-        names.push(m[2]);
+  <script>
+    (function () {
+      // 1) Proactively unregister any service workers on this origin
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister().catch(()=>{}))).catch(()=>{});
       }
-    }
-    // If you want unique names only, uncomment next line:
-    // const unique = [...new Set(names)];
-    const result = names.join("\n");
-    out.textContent = result;
-    count.textContent = names.length ? `Found ${names.length} name(s).` : 'No names found.';
-  }
 
-  document.getElementById('extract').addEventListener('click', extract);
+      // Elements
+      const input = document.getElementById('in');
+      const out = document.getElementById('out');
+      const count = document.getElementById('count');
+      const extractBtn = document.getElementById('extract');
+      const copyBtn = document.getElementById('copy');
+      const clearBtn = document.getElementById('clear');
+      const cbUnique = document.getElementById('unique');
+      const cbSort = document.getElementById('sort');
 
-  document.getElementById('copy').addEventListener('click', async () => {
-    const text = out.textContent || "";
-    try {
-      await navigator.clipboard.writeText(text);
-      const orig = event.target.textContent;
-      event.target.textContent = 'Copied!';
-      setTimeout(() => (event.target.textContent = orig), 900);
-    } catch {
-      // Fallback: select text so user can Ctrl+C
-      const range = document.createRange();
-      range.selectNodeContents(out);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-      alert('Output selected—press Ctrl/Cmd+C to copy.');
-    }
-  });
-})();
-</script>
+      // 2) Never use storage; also try to purge anything someone might add later
+      try { if (window.localStorage) localStorage.clear(); } catch {}
+      try { if (window.sessionStorage) sessionStorage.clear(); } catch {}
+
+      // Unicode-safe regex that matches name='...' or name="..."
+      const rx = /name=(['"])(.*?)\1/gu;
+
+      function wipe() {
+        input.value = '';
+        out.textContent = '';
+        count.textContent = '';
+        const sel = window.getSelection?.();
+        if (sel && sel.removeAllRanges) sel.removeAllRanges();
+      }
+
+      function extract() {
+        const text = input.value || "";
+        const names = [];
+
+        for (const line of text.split(/\r?\n/)) {
+          if (!line.trim()) continue;
+          let m;
+          rx.lastIndex = 0;
+          while ((m = rx.exec(line)) !== null) {
+            names.push(m[2]);
+          }
+        }
+
+        let result = names;
+        if (cbUnique.checked) result = [...new Set(result)];
+        if (cbSort.checked) result = result.slice().sort((a, b) => a.localeCompare(b, undefined, {sensitivity: 'base'}));
+
+        out.textContent = result.join("\n");
+        count.textContent = result.length ? `Found ${result.length} name${result.length===1?'':'s'}.` : 'No names found.';
+      }
+
+      // 3) Event wiring
+      extractBtn.addEventListener('click', extract);
+
+      copyBtn.addEventListener('click', async (e) => {
+        const text = out.textContent || "";
+        if (!text) { count.textContent = "Nothing to copy."; return; }
+        try {
+          await navigator.clipboard.writeText(text);
+          const btn = e.currentTarget;
+          const orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => (btn.textContent = orig), 900);
+        } catch {
+          // Fallback: select text so user can copy manually
+          const range = document.createRange();
+          range.selectNodeContents(out);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          alert('Output selected—press Ctrl/Cmd+C to copy.');
+        }
+      });
+
+      clearBtn.addEventListener('click', wipe);
+
+      // 4) Auto-wipe on unload, and when the tab is backgrounded
+      const erase = () => wipe();
+      window.addEventListener('beforeunload', erase);
+      window.addEventListener('pagehide', erase);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') wipe();
+      });
+
+      // 5) Keyboard shortcut: Ctrl/Cmd+Enter to Extract
+      document.addEventListener('keydown', (ev) => {
+        if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') extract();
+      });
+
+      // 6) Start with a guaranteed clean slate on initial load
+      wipe();
+    })();
+  </script>
 </body>
 </html>
