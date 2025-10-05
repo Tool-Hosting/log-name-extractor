@@ -1,3 +1,5 @@
+// app.js — no auto-clear on background/tab switch
+
 // Proactively unregister any service workers on this origin
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations()
@@ -74,20 +76,11 @@ copyBtn.addEventListener('click', async (e) => {
   }
 });
 
+// Manual Clear button
 clearBtn.addEventListener('click', wipe);
 
-// Auto-wipe on unload, and when the tab is backgrounded
-const erase = () => wipe();
-window.addEventListener('beforeunload', erase);
-window.addEventListener('pagehide', erase);
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') wipe();
-});
+// Auto-wipe ONLY on full page reload/close for shared-computer safety
+window.addEventListener('beforeunload', wipe);
 
-// Keyboard shortcut: Ctrl/Cmd+Enter to Extract
-document.addEventListener('keydown', (ev) => {
-  if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') extract();
-});
-
-// Start with a guaranteed clean slate on initial load
+// Start clean on initial load
 wipe();
