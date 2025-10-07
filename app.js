@@ -21,8 +21,6 @@ const cbSort = document.getElementById('sort');
 try { if (window.localStorage) localStorage.clear(); } catch { }
 try { if (window.sessionStorage) sessionStorage.clear(); } catch { }
 
-// Updated regex to match names with embedded apostrophes inside quotes
-const rx = /name='(.*?)'(?=\s+\w+=)/gu;
 
 function wipe() {
   input.value = '';
@@ -32,6 +30,9 @@ function wipe() {
   if (sel && sel.removeAllRanges) sel.removeAllRanges();
 }
 
+// Updated regex to match names that may end with apostrophes
+const rx = /name='(.*?)'(?=\s+\w+=)/gu;
+
 function extract() {
   const text = input.value || "";
   const names = [];
@@ -40,8 +41,7 @@ function extract() {
     let m;
     rx.lastIndex = 0;
     while ((m = rx.exec(line)) !== null) {
-      // m[1] if name in single quotes, m[2] if in double quotes
-      names.push(m[1] || m[2]);
+      names.push(m[1]);
     }
   }
   let result = names;
@@ -85,5 +85,6 @@ window.addEventListener('beforeunload', wipe);
 
 // Start clean on initial load
 wipe();
+
 
 
