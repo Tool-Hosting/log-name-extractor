@@ -24,11 +24,16 @@
     label { user-select:none; }
     .footer { font-size:.85rem; color:var(--muted); margin-top:4px; }
     code { background:#0b1430; padding:0 6px; border-radius:6px; border:1px solid var(--border); }
+    /* Add some space for file input */
+    #logFile { margin-bottom: 8px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Paste logs below → click “Extract”</h1>
+
+    <!-- File upload for log files -->
+    <input type="file" id="logFile" accept=".txt,.log" />
 
     <textarea id="in"
       placeholder="Paste your log lines here..."
@@ -59,4 +64,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-
