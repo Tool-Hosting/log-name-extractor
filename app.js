@@ -1,10 +1,10 @@
-// app.js — no auto-clear on background/tab switch
+// app.js — with file upload
 
 // Proactively unregister any service workers on this origin
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations()
-    .then(regs => regs.forEach(r => r.unregister().catch(() => { })))
-    .catch(() => { });
+    .then(regs => regs.forEach(r => r.unregister().catch(() => {})))
+    .catch(() => {});
 }
 
 // Elements
@@ -16,12 +16,24 @@ const copyBtn = document.getElementById('copy');
 const clearBtn = document.getElementById('clear');
 const cbUnique = document.getElementById('unique');
 const cbSort = document.getElementById('sort');
+const fileInput = document.getElementById('logFile');
 
-// Never use storage; try to purge anything someone might add later
-try { if (window.localStorage) localStorage.clear(); } catch { }
-try { if (window.sessionStorage) sessionStorage.clear(); } catch { }
+// Regex to match names before next key, including apostrophes
+const rx = /name='(.*?)'(?=\s+\w+=)/gu;
 
+// File upload: load to textarea
+fileInput.addEventListener('change', function (e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    input.value = event.target.result;
+    count.textContent = "Log file loaded. Ready to extract.";
+  };
+  reader.readAsText(file);
+});
 
+// Helper: clear all
 function wipe() {
   input.value = '';
   out.textContent = '';
@@ -30,9 +42,7 @@ function wipe() {
   if (sel && sel.removeAllRanges) sel.removeAllRanges();
 }
 
-// Updated regex to match names that may end with apostrophes
-const rx = /name='(.*?)'(?=\s+\w+=)/gu;
-
+// Extraction logic
 function extract() {
   const text = input.value || "";
   const names = [];
@@ -51,7 +61,7 @@ function extract() {
   count.textContent = result.length ? `Found ${result.length} name${result.length === 1 ? '' : 's'}.` : 'No names found.';
 }
 
-// Event wiring
+// Button events
 extractBtn.addEventListener('click', extract);
 
 copyBtn.addEventListener('click', async (e) => {
@@ -77,14 +87,9 @@ copyBtn.addEventListener('click', async (e) => {
   }
 });
 
-// Manual Clear button
 clearBtn.addEventListener('click', wipe);
 
-// Auto-wipe ONLY on full page reload/close for shared-computer safety
+// Auto-wipe on page unload
 window.addEventListener('beforeunload', wipe);
 
-// Start clean on initial load
 wipe();
-
-
-
