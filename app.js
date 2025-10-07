@@ -1,4 +1,4 @@
-// app.js — with file upload and drag-and-drop
+// app.js — file upload + drag-and-drop
 
 // Proactively unregister any service workers on this origin
 if ('serviceWorker' in navigator) {
@@ -18,10 +18,10 @@ const cbUnique = document.getElementById('unique');
 const cbSort = document.getElementById('sort');
 const fileInput = document.getElementById('logFile');
 
-// Regex to match names before next key, including trailing apostrophes
+// Regex to match names up to next key
 const rx = /name='(.*?)'(?=\s+\w+=)/gu;
 
-// File upload: load to textarea
+// File input loading
 fileInput.addEventListener('change', function (e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -33,18 +33,18 @@ fileInput.addEventListener('change', function (e) {
   reader.readAsText(file);
 });
 
-// Drag-and-drop support for the textarea
+// Drag-and-drop support for textarea
 input.addEventListener('dragover', function(e) {
   e.preventDefault();
   input.style.borderColor = "#5496fa";
 });
 input.addEventListener('dragleave', function(e) {
   e.preventDefault();
-  input.style.borderColor = ""; // reset
+  input.style.borderColor = "";
 });
 input.addEventListener('drop', function(e) {
   e.preventDefault();
-  input.style.borderColor = ""; // reset
+  input.style.borderColor = "";
   if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
     const file = e.dataTransfer.files[0];
     const reader = new FileReader();
@@ -84,7 +84,7 @@ function extract() {
   count.textContent = result.length ? `Found ${result.length} name${result.length === 1 ? '' : 's'}.` : 'No names found.';
 }
 
-// Button events
+// Event wiring
 extractBtn.addEventListener('click', extract);
 
 copyBtn.addEventListener('click', async (e) => {
@@ -113,3 +113,6 @@ copyBtn.addEventListener('click', async (e) => {
 clearBtn.addEventListener('click', wipe);
 
 // Auto-wipe on page unload
+window.addEventListener('beforeunload', wipe);
+
+wipe();
