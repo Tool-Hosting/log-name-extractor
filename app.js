@@ -22,7 +22,8 @@ try { if (window.localStorage) localStorage.clear(); } catch { }
 try { if (window.sessionStorage) sessionStorage.clear(); } catch { }
 
 // Updated regex to match names with embedded apostrophes inside quotes
-const rx = /name='([^']+)'|name="([^"]+)"/gu;
+const rx = /name=(')((?:[^']|'')*?)'|name="([^"]+)"/gu;
+
 
 function wipe() {
   input.value = '';
@@ -85,3 +86,4 @@ window.addEventListener('beforeunload', wipe);
 
 // Start clean on initial load
 wipe();
+
