@@ -3,8 +3,8 @@
 // Proactively unregister any service workers on this origin
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations()
-    .then(regs => regs.forEach(r => r.unregister().catch(()=>{})))
-    .catch(()=>{});
+    .then(regs => regs.forEach(r => r.unregister().catch(() => { })))
+    .catch(() => { });
 }
 
 // Elements
@@ -18,11 +18,11 @@ const cbUnique = document.getElementById('unique');
 const cbSort = document.getElementById('sort');
 
 // Never use storage; try to purge anything someone might add later
-try { if (window.localStorage) localStorage.clear(); } catch {}
-try { if (window.sessionStorage) sessionStorage.clear(); } catch {}
+try { if (window.localStorage) localStorage.clear(); } catch { }
+try { if (window.sessionStorage) sessionStorage.clear(); } catch { }
 
-// Unicode-safe regex that matches name='...' or name="..."
-const rx = /name=(['"])(.*?)\1/gu;
+// Updated regex to match names with embedded apostrophes inside quotes
+const rx = /name='([^']+)'|name="([^"]+)"/gu;
 
 function wipe() {
   input.value = '';
@@ -35,22 +35,20 @@ function wipe() {
 function extract() {
   const text = input.value || "";
   const names = [];
-
   for (const line of text.split(/\r?\n/)) {
     if (!line.trim()) continue;
     let m;
     rx.lastIndex = 0;
     while ((m = rx.exec(line)) !== null) {
-      names.push(m[2]);
+      // m[1] if name in single quotes, m[2] if in double quotes
+      names.push(m[1] || m[2]);
     }
   }
-
   let result = names;
   if (cbUnique.checked) result = [...new Set(result)];
-  if (cbSort.checked) result = result.slice().sort((a, b) => a.localeCompare(b, undefined, {sensitivity: 'base'}));
-
+  if (cbSort.checked) result = result.slice().sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   out.textContent = result.join("\n");
-  count.textContent = result.length ? `Found ${result.length} name${result.length===1?'':'s'}.` : 'No names found.';
+  count.textContent = result.length ? `Found ${result.length} name${result.length === 1 ? '' : 's'}.` : 'No names found.';
 }
 
 // Event wiring
@@ -58,7 +56,10 @@ extractBtn.addEventListener('click', extract);
 
 copyBtn.addEventListener('click', async (e) => {
   const text = out.textContent || "";
-  if (!text) { count.textContent = "Nothing to copy."; return; }
+  if (!text) {
+    count.textContent = "Nothing to copy.";
+    return;
+  }
   try {
     await navigator.clipboard.writeText(text);
     const btn = e.currentTarget;
